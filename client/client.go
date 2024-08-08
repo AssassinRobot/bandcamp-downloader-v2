@@ -62,14 +62,14 @@ func (c *bandcampClient) Download(url string) []error{
 
 		baseFilepath := fmt.Sprintf("./%s%s", helpers.RemoveAlphaNum(trackData.Artist), helpers.RemoveAlphaNum(trackData.Current.Title))
 		albumArtwork := fmt.Sprintf("https://f4.bcbits.com/img/a%s_16.jpg", strconv.Itoa(trackData.Current.ArtID))
-		albumArtworkFilepath := fmt.Sprintf("%s/%s.jpg", baseFilepath, trackData.Current.Title)
+		trackData.AlbumArtworkFilepath = fmt.Sprintf("%s/%s.jpg", baseFilepath, trackData.Current.Title)
 
 		createError := c.file.CreateDir(baseFilepath)
 		if createError != nil {
 			errors = append(errors, createError)
 		}
 
-		downloadImageError := c.downloadImage(albumArtworkFilepath, albumArtwork)
+		downloadImageError := c.downloadImage(trackData.AlbumArtworkFilepath, albumArtwork)
 		if downloadImageError != nil {
 			errors = append(errors, downloadImageError)
 		}

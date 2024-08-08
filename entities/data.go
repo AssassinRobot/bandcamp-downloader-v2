@@ -26,8 +26,6 @@ type(
 		Artist               string `json:"artist"`
 		AlbumReleaseDate     string `json:"album_release_date"`
 		ArtID                int    `json:"art_id"`
-		BaseFilepath         string
-		AlbumArtwork         string
 		AlbumArtworkFilepath string
 		CurrentTrackTitle    string
 		CurrentTrackURL      string
