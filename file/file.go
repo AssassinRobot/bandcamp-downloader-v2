@@ -5,15 +5,18 @@ import (
 	"log"
 	"os"
 
+	"github.com/bogem/id3v2"
+	"github.com/crsrusl/bandcamp-downloader-v2/entities"
 )
 
 type File interface {
-	Save(path string,content io.Reader)error
-	CreateDir(path string)error
+	Save(path string, content io.Reader) error
+	CreateDir(path string) error
+	TagFile(mp3 *entities.TrackData) error
 	close()
 }
 
-func NewFileMngmnt()File{
+func NewFileMngmnt() File {
 	return &fileMngmnt{}
 }
 
@@ -21,7 +24,7 @@ type fileMngmnt struct {
 	file *os.File
 }
 
-func (f *fileMngmnt)Save(path string,content io.Reader)error{
+func (f *fileMngmnt) Save(path string, content io.Reader) error {
 	out, osCreateError := os.Create(path)
 	if osCreateError != nil {
 		return osCreateError
@@ -39,9 +42,9 @@ func (f *fileMngmnt)Save(path string,content io.Reader)error{
 	return nil
 }
 
-func (f *fileMngmnt)CreateDir(path string)error{
+func (f *fileMngmnt) CreateDir(path string) error {
 	osMkdirError := os.MkdirAll(path, 0o700)
-	
+
 	if osMkdirError != nil {
 		return osMkdirError
 	}
@@ -49,14 +52,48 @@ func (f *fileMngmnt)CreateDir(path string)error{
 	return nil
 }
 
+func (f *fileMngmnt) TagFile(mp3 *entities.TrackData) error {
+	tag, mp3OpenError := id3v2.Open(mp3.CurrentTrackFilepath, id3v2.Options{Parse: true, ParseFrames: nil})
+	if mp3OpenError != nil {
+		return mp3OpenError
+	}
 
-func (f *fileMngmnt)close(){
-	if f.file != nil{
+	artwork, readFileError := os.ReadFile(mp3.AlbumArtworkFilepath)
+	if readFileError != nil {
+		return readFileError
+	}
+
+	pic := id3v2.PictureFrame{
+		Encoding:    id3v2.EncodingUTF8,
+		MimeType:    "image/jpeg",
+		PictureType: id3v2.PTFrontCover,
+		Description: "Front cover",
+		Picture:     artwork,
+	}
+
+	tag.AddAttachedPicture(pic)
+	tag.SetArtist(mp3.Artist)
+	tag.SetTitle(mp3.CurrentTrackTitle)
+	tag.SetAlbum(mp3.Current.Title)
+
+	if saveTagError := tag.Save(); saveTagError != nil {
+		return saveTagError
+	}
+
+	if tagCloseError := tag.Close(); tagCloseError != nil {
+		return tagCloseError
+	}
+
+	return nil
+}
+
+func (f *fileMngmnt) close() {
+	if f.file != nil {
 		err := f.file.Close()
-		if err != nil{
+		if err != nil {
 			log.Fatalln(err.Error())
 		}
-		return 
+		return
 	}
 
 	log.Fatalln("missing file")
