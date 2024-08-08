@@ -19,6 +19,7 @@ func main() {
 
 	for _, err := range errors {
 		log.Println(err)
+		return
 	}
 
 	log.Println("Done")

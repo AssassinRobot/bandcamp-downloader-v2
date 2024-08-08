@@ -56,6 +56,8 @@ func (c *bandcampClient) Download(url string) []error{
 
 		trackDataString, _ := s.Attr("data-tralbum")
 
+		log.Printf("track data received:%s\n",trackDataString)
+
 		if jsonUnmarshalError := json.Unmarshal([]byte(trackDataString), &trackData); jsonUnmarshalError != nil {
 			log.Fatal(jsonUnmarshalError)
 		}
