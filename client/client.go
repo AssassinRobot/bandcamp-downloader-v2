@@ -16,18 +16,18 @@ import (
 )
 
 type Client interface {
-	Download(url string)[]error
+	Download(url string) []error
 	loadPage(url string) error
 	downloadImage(filepath, url string) error
 	downloadMP3(mp3 *entities.TrackData) error
 }
 
-func NewClient(file file.File)Client{
+func NewClient(file file.File) Client {
 	return &bandcampClient{
-		client:  &http.Client{},
-		wg: &sync.WaitGroup{},
+		client:    &http.Client{},
+		wg:        &sync.WaitGroup{},
 		downloads: &[]string{},
-		file: file,
+		file:      file,
 	}
 }
 
@@ -39,9 +39,9 @@ type bandcampClient struct {
 	wg        *sync.WaitGroup
 }
 
-func (c *bandcampClient) Download(url string) []error{
+func (c *bandcampClient) Download(url string) []error {
 	var errors []error
-	
+
 	var errorChan = make(chan error, 500)
 
 	loadPageError := c.loadPage(url)
@@ -56,7 +56,7 @@ func (c *bandcampClient) Download(url string) []error{
 
 		trackDataString, _ := s.Attr("data-tralbum")
 
-		log.Printf("track data received:%s\n",trackDataString)
+		log.Printf("track data received:%s\n", trackDataString)
 
 		if jsonUnmarshalError := json.Unmarshal([]byte(trackDataString), &trackData); jsonUnmarshalError != nil {
 			log.Fatal(jsonUnmarshalError)
@@ -78,20 +78,24 @@ func (c *bandcampClient) Download(url string) []error{
 
 		for _, v := range trackData.TrackInfo {
 			c.wg.Add(1)
-			trackData.CurrentTrackNum = strconv.Itoa(v.TrackNum)
-			trackData.CurrentTrackTitle = v.Title
-			trackData.CurrentTrackURL = v.File.Mp3128
-			trackData.CurrentTrackFilepath = baseFilepath +
-				"/" + helpers.RemoveAlphaNum(trackData.CurrentTrackNum) +
-				"-" + helpers.RemoveAlphaNum(trackData.Artist) +
-				"-" + helpers.RemoveAlphaNum(trackData.CurrentTrackTitle) +
+			currentTrackData := *trackData
+
+			currentTrackData.CurrentTrackNum = strconv.Itoa(v.TrackNum)
+			currentTrackData.CurrentTrackTitle = v.Title
+			currentTrackData.CurrentTrackURL = v.File.Mp3128
+			currentTrackData.CurrentTrackFilepath = baseFilepath +
+				"/" + helpers.RemoveAlphaNum(currentTrackData.CurrentTrackNum) +
+				"-" + helpers.RemoveAlphaNum(currentTrackData.Artist) +
+				"-" + helpers.RemoveAlphaNum(currentTrackData.CurrentTrackTitle) +
 				".mp3"
-			go func() {
-				downloadError := c.downloadMP3(trackData)
-				if downloadError != nil{
+			go func(mp3 entities.TrackData) {
+				defer c.wg.Done()
+				
+				downloadError := c.downloadMP3(&mp3)
+				if downloadError != nil {
 					errorChan <- downloadError
 				}
-			}()
+			}(currentTrackData)
 		}
 
 		c.wg.Wait()
@@ -102,7 +106,7 @@ func (c *bandcampClient) Download(url string) []error{
 
 	})
 
-	for err := range errorChan{
+	for err := range errorChan {
 		errors = append(errors, err)
 	}
 
@@ -145,7 +149,6 @@ func (c *bandcampClient) loadPage(url string) error {
 }
 
 func (c *bandcampClient) downloadMP3(mp3 *entities.TrackData) error {
-	defer c.wg.Done()
 
 	*c.downloads = append(*c.downloads, fmt.Sprintf("%s - %s", mp3.Artist, mp3.CurrentTrackTitle))
 
